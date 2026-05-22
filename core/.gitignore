@@ -8,3 +8,13 @@ wheels/
 
 # Virtual environments
 .venv
+
+# YOLO model weights
+*.pt
+
+# Test assets and run outputs
+test_videos/
+output/
+meeting_room.png
+meeting_room_detected.png
+

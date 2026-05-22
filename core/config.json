@@ -1,0 +1,12 @@
+{
+  "api_url": "http://localhost:5000/api/occupancy",
+  "sample_interval_seconds": 2.0,
+  "smoothing": {
+    "positive_threshold": 3,
+    "negative_threshold": 10
+  },
+  "rooms": [
+    "test_videos/27091-361827476_medium.mp4",
+    "test_videos/27095-361827464_medium.mp4"
+  ]
+}
