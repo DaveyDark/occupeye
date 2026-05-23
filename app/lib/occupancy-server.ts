@@ -1,4 +1,5 @@
 import { getBookings } from "./db";
+import { notifyRoomFreed } from "./notifications";
 import {
   ROOM_DIRECTORY,
   ROOM_LOOKUP,
@@ -7,7 +8,7 @@ import {
   type OccupancyEvent,
 } from "./occupancy";
 
-const PROBABLY_EMPTY_TIMEOUT_MS = 2 * 60 * 1000;
+const PROBABLY_EMPTY_TIMEOUT_MS = 10 * 1000;
 
 // Cache map globally to survive Next.js dev server hot reloading
 const globalState = globalThis as unknown as {
@@ -124,6 +125,9 @@ export function resolveRoomStatus(
   };
 
   roomStateStore.set(roomUrl, resolvedStatus);
+  void notifyRoomFreed(resolvedStatus).catch((error) => {
+    console.error(`[notifications] Failed to send room-free emails for ${room.roomName}:`, error);
+  });
 
   return resolvedStatus;
 }

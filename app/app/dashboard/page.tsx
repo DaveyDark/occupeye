@@ -20,6 +20,10 @@ export default function Dashboard() {
   const [bookedByName, setBookedByName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
+  const [notifyEmail, setNotifyEmail] = useState("");
+  const [notifyMessage, setNotifyMessage] = useState<string | null>(null);
+  const [notifyError, setNotifyError] = useState<string | null>(null);
+  const [isNotifySubmitting, setIsNotifySubmitting] = useState(false);
 
   useEffect(() => {
     let isActive = true;
@@ -77,12 +81,6 @@ export default function Dashboard() {
     return status ?? selectedRoom;
   }, [selectedRoom, statusByRoomName]);
 
-  // Clear booking input and error on room change
-  useEffect(() => {
-    setBookedByName("");
-    setBookingError(null);
-  }, [selectedRoom]);
-
   const handleReserve = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeSelectedRoom || !bookedByName.trim()) return;
@@ -121,6 +119,15 @@ export default function Dashboard() {
     }
   };
 
+  const handleRoomSelect = (room: RoomStatus) => {
+    setSelectedRoom(room);
+    setBookedByName("");
+    setBookingError(null);
+    setNotifyEmail("");
+    setNotifyMessage(null);
+    setNotifyError(null);
+  };
+
   const handleCancelReservation = async () => {
     if (!activeSelectedRoom) return;
 
@@ -152,6 +159,45 @@ export default function Dashboard() {
       setBookingError(err instanceof Error ? err.message : "Error canceling reservation");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleNotifyMe = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!activeSelectedRoom?.roomUrl || !notifyEmail.trim()) {
+      return;
+    }
+
+    setIsNotifySubmitting(true);
+    setNotifyError(null);
+    setNotifyMessage(null);
+
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          roomName: activeSelectedRoom.roomName,
+          roomUrl: activeSelectedRoom.roomUrl,
+          email: notifyEmail.trim(),
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Subscription failed");
+      }
+
+      setNotifyMessage(data.message || `We'll email you when ${activeSelectedRoom.roomName} becomes free.`);
+      setNotifyEmail("");
+    } catch (err) {
+      setNotifyError(err instanceof Error ? err.message : "Unable to create notification");
+    } finally {
+      setIsNotifySubmitting(false);
     }
   };
 
@@ -296,7 +342,7 @@ export default function Dashboard() {
                 <RoomTile 
                   key={room.definition.roomName} 
                   room={room} 
-                  onSelect={() => setSelectedRoom(room.status)}
+                  onSelect={() => handleRoomSelect(room.status)}
                 />
               ))}
 
@@ -566,6 +612,44 @@ export default function Dashboard() {
                     })()}
                   </div>
                 </div>
+              )}
+
+              {activeSelectedRoom.state === "occupied" && activeSelectedRoom.roomUrl && (
+                <form onSubmit={handleNotifyMe} className="space-y-3 rounded-2xl border border-amber-100 bg-amber-50/60 p-4">
+                  <div>
+                    <p className="text-[10px] font-extrabold uppercase tracking-wider text-amber-600">Notify Me When Free</p>
+                    <p className="mt-1 text-[11px] leading-normal text-amber-900/80">
+                      Enter your email and we&apos;ll send you a message as soon as this room becomes free.
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="email"
+                      required
+                      value={notifyEmail}
+                      onChange={(event) => setNotifyEmail(event.target.value)}
+                      placeholder="name@company.com"
+                      className="flex-1 rounded-xl border border-amber-200 bg-white px-3.5 py-2 text-xs font-medium text-slate-800 placeholder-slate-400 shadow-sm focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-300"
+                    />
+                    <button
+                      type="submit"
+                      disabled={isNotifySubmitting || !notifyEmail.trim()}
+                      className="rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold text-white shadow-md transition-all hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {isNotifySubmitting ? "Saving..." : "Notify me"}
+                    </button>
+                  </div>
+                  {notifyMessage ? (
+                    <p className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-[10px] font-semibold text-emerald-700">
+                      {notifyMessage}
+                    </p>
+                  ) : null}
+                  {notifyError ? (
+                    <p className="rounded-lg border border-rose-100 bg-rose-50 px-3 py-2 text-[10px] font-semibold text-rose-700">
+                      {notifyError}
+                    </p>
+                  ) : null}
+                </form>
               )}
 
               {/* Vacant placeholder inside modal */}

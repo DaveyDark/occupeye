@@ -27,6 +27,23 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
+## Room Notifications
+
+When a room is occupied, the dashboard modal lets you enter an email address and subscribe to a free-room alert. Subscriptions are saved in `data/notifications.json` and the email is sent through Nodemailer + SMTP when the room transitions to free.
+
+Add these environment variables in `app/.env`:
+
+```env
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your-email@example.com
+SMTP_PASS=your-app-password
+SMTP_FROM=your-email@example.com
+```
+
+The current implementation uses the room status transition in the occupancy API, so alerts are triggered even when a room becomes free through the automatic timeout flow.
+
 ## Deploy on Vercel
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
