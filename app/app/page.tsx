@@ -63,11 +63,13 @@ export default function Home() {
   }, []);
 
   const summary = useMemo(() => {
-    const occupiedCount = rooms.filter((room) => room.occupied).length;
+    const occupiedCount = rooms.filter((room) => room.state === "occupied").length;
+    const probablyEmptyCount = rooms.filter((room) => room.state === "probably_empty").length;
 
     return {
       occupiedCount,
-      freeCount: rooms.length - occupiedCount,
+      probablyEmptyCount,
+      freeCount: rooms.length - occupiedCount - probablyEmptyCount,
     };
   }, [rooms]);
 
@@ -98,6 +100,10 @@ export default function Home() {
               <div className="grid gap-3 sm:grid-cols-3">
                 <StatCard label="Rooms tracked" value={ROOM_DIRECTORY.length.toString()} />
                 <StatCard label="Occupied" value={summary.occupiedCount.toString()} />
+                <StatCard label="Probably Empty" value={summary.probablyEmptyCount.toString()} />
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
                 <StatCard label="Free" value={summary.freeCount.toString()} />
               </div>
             </div>
@@ -185,14 +191,14 @@ export default function Home() {
                       {room.roomName}
                     </h2>
                   </div>
-                  <StatusPill occupied={room.occupied} />
+                  <StatusPill state={room.state} />
                 </div>
 
                 <div className="mt-6 flex items-end justify-between gap-4 border-t border-white/10 pt-4">
                   <div>
                     <p className="text-sm text-slate-400">Current state</p>
                     <p className="mt-1 text-lg font-medium text-white">
-                      {room.occupied ? "Occupied" : "Free"}
+                      {formatStateLabel(room.state)}
                     </p>
                   </div>
                   <div className="text-right">
@@ -220,18 +226,33 @@ function StatCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-function StatusPill({ occupied }: { occupied: boolean }) {
+function StatusPill({ state }: { state: RoomStatus["state"] }) {
+  const className =
+    state === "occupied"
+      ? "bg-rose-500/15 text-rose-200"
+      : state === "probably_empty"
+        ? "bg-amber-500/15 text-amber-100"
+        : "bg-emerald-500/15 text-emerald-200";
+
   return (
     <span
-      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] ${
-        occupied
-          ? "bg-rose-500/15 text-rose-200"
-          : "bg-emerald-500/15 text-emerald-200"
-      }`}
+      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] ${className}`}
     >
-      {occupied ? "Occupied" : "Free"}
+      {formatStateLabel(state)}
     </span>
   );
+}
+
+function formatStateLabel(state: RoomStatus["state"]) {
+  if (state === "occupied") {
+    return "Occupied";
+  }
+
+  if (state === "probably_empty") {
+    return "Probably Empty";
+  }
+
+  return "Free";
 }
 
 function formatTimestamp(timestamp: string) {

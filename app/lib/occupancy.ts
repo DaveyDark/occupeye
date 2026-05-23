@@ -3,8 +3,10 @@ export type RoomDefinition = {
   roomName: string;
 };
 
+export type RoomOccupancyState = "occupied" | "probably_empty" | "free";
+
 export type RoomStatus = RoomDefinition & {
-  occupied: boolean;
+  state: RoomOccupancyState;
   timestamp: string | null;
 };
 
@@ -14,13 +16,10 @@ export type OccupancyEvent = {
   timestamp?: string | number | Date | null;
 };
 
+const PROBABLY_EMPTY_TIMEOUT_MS = 2 * 60 * 1000;
+
 export const ROOM_DIRECTORY: RoomDefinition[] = [
-  { roomUrl: "conference-room-a", roomName: "Conference Room A" },
-  { roomUrl: "conference-room-b", roomName: "Conference Room B" },
-  { roomUrl: "focus-room-1", roomName: "Focus Room 1" },
-  { roomUrl: "focus-room-2", roomName: "Focus Room 2" },
-  { roomUrl: "lobby", roomName: "Lobby" },
-  { roomUrl: "breakout-space", roomName: "Breakout Space" },
+  { roomUrl: "rtsp://192.168.2.226:1945", roomName: "Room 1" },
 ];
 
 const ROOM_LOOKUP = new Map(
@@ -29,7 +28,7 @@ const ROOM_LOOKUP = new Map(
 
 const createInitialStatus = (room: RoomDefinition): RoomStatus => ({
   ...room,
-  occupied: false,
+  state: "free",
   timestamp: null,
 });
 
@@ -38,9 +37,7 @@ const roomStateStore = new Map(
 );
 
 export function getAllRoomStatuses(): RoomStatus[] {
-  return ROOM_DIRECTORY.map(
-    (room) => roomStateStore.get(room.roomUrl) ?? createInitialStatus(room),
-  );
+  return ROOM_DIRECTORY.map((room) => resolveRoomStatus(room.roomUrl));
 }
 
 export function updateRoomStatus(event: OccupancyEvent): RoomStatus {
@@ -50,16 +47,64 @@ export function updateRoomStatus(event: OccupancyEvent): RoomStatus {
     throw new Error(`Unknown room-url: ${event.roomUrl}`);
   }
 
-  const timestamp = normalizeTimestamp(event.timestamp) ?? new Date().toISOString();
-  const nextStatus: RoomStatus = {
-    ...room,
-    occupied: event.occupied,
-    timestamp,
-  };
+  const eventTimestamp = normalizeTimestamp(event.timestamp) ?? new Date().toISOString();
+  const currentStatus = resolveRoomStatus(room.roomUrl, eventTimestamp);
+  const nextStatus: RoomStatus = event.occupied
+    ? {
+        ...room,
+        state: "occupied",
+        timestamp: eventTimestamp,
+      }
+    : {
+        ...currentStatus,
+        ...room,
+        state: "probably_empty",
+        timestamp: eventTimestamp,
+      };
 
   roomStateStore.set(room.roomUrl, nextStatus);
 
   return nextStatus;
+}
+
+export function resolveRoomStatus(
+  roomUrl: string,
+  referenceTime: string | number | Date = new Date(),
+): RoomStatus {
+  const room = ROOM_LOOKUP.get(roomUrl);
+
+  if (!room) {
+    throw new Error(`Unknown room-url: ${roomUrl}`);
+  }
+
+  const existingStatus = roomStateStore.get(roomUrl) ?? createInitialStatus(room);
+
+  if (existingStatus.state !== "probably_empty") {
+    return existingStatus;
+  }
+
+  const pendingSince = existingStatus.timestamp ? new Date(existingStatus.timestamp).getTime() : NaN;
+  const currentTime = referenceTime instanceof Date
+    ? referenceTime.getTime()
+    : new Date(referenceTime).getTime();
+
+  if (Number.isNaN(pendingSince) || Number.isNaN(currentTime)) {
+    return existingStatus;
+  }
+
+  if (currentTime - pendingSince < PROBABLY_EMPTY_TIMEOUT_MS) {
+    return existingStatus;
+  }
+
+  const resolvedStatus: RoomStatus = {
+    ...room,
+    state: "free",
+    timestamp: new Date(currentTime).toISOString(),
+  };
+
+  roomStateStore.set(roomUrl, resolvedStatus);
+
+  return resolvedStatus;
 }
 
 function normalizeTimestamp(value: OccupancyEvent["timestamp"]): string | null {
