@@ -5,6 +5,12 @@
     "positive_threshold": 3,
     "negative_threshold": 10
   },
+  "face_recognition": {
+    "enabled": true,
+    "gallery_dir": "faces",
+    "confidence_threshold": 65.0,
+    "min_samples_per_person": 2
+  },
   "rooms": [
     "rtsp://192.168.2.226:1945"
   ]

@@ -9,6 +9,8 @@ from datetime import datetime
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from detector.yolo import YoloDetector
+from detector.face import FaceDetector
+from identity.face_identifier import FaceIdentifier
 from sources.rtsp import RtspSource
 from sources.video import VideoSource
 from occupancy.state_machine import OccupancyStateMachine
@@ -16,6 +18,8 @@ from publisher.api import ApiPublisher
 
 # Global lock for serializing YOLO inference across threads
 detector_lock = threading.Lock()
+face_detector: FaceDetector | None = None
+face_identifier: FaceIdentifier | None = None
 
 def room_worker(source_url: str, detector: YoloDetector, publisher: ApiPublisher, 
                 sample_interval: float, smoothing_config: dict, stop_event: threading.Event):
@@ -95,8 +99,22 @@ def room_worker(source_url: str, detector: YoloDetector, publisher: ApiPublisher
             # Run YOLO detection thread-safely
             with detector_lock:
                 results = detector.detect(frame)
+
+            face_results = {"count": 0, "detections": []}
+            if face_detector is not None:
+                face_results = face_detector.detect(
+                    frame,
+                    rois=[det["box"] for det in results["detections"]] or None,
+                )
+
+            identity_results = {"recognized_count": 0, "recognized_names": [], "detections": []}
+            if face_identifier is not None and face_results["detections"]:
+                identity_results = face_identifier.identify(frame, face_results["detections"])
                 
             count = results["count"]
+            face_count = face_results["count"]
+            recognized_count = identity_results["recognized_count"]
+            recognized_names = identity_results["recognized_names"]
             max_conf = results["max_confidence"]
             
             # Update state machine (applies temporal smoothing)
@@ -105,7 +123,11 @@ def room_worker(source_url: str, detector: YoloDetector, publisher: ApiPublisher
             # Print current frame status to console
             state_str = "OCCUPIED" if is_occupied else "AVAILABLE"
             time_str = datetime.now().strftime("%H:%M:%S")
-            print(f"[{time_str}] [{room_name}] People detected: {count} | Smoothed State: {state_str} (Conf: {max_conf:.2f})")
+            identity_str = ", ".join(recognized_names) if recognized_names else "none"
+            print(
+                f"[{time_str}] [{room_name}] People detected: {count} | Faces detected: {face_count} | "
+                f"Recognized: {identity_str} | Smoothed State: {state_str} (Conf: {max_conf:.2f})"
+            )
             
             # Publish to API if room occupancy state transitioned
             if state_changed:
@@ -139,6 +161,7 @@ def main():
     api_url = config["api_url"]
     sample_interval = config.get("sample_interval_seconds", 2.0)
     smoothing = config.get("smoothing", {"positive_threshold": 3, "negative_threshold": 10})
+    face_config = config.get("face_recognition", {})
     rooms = config.get("rooms", [])
     
     if not rooms:
@@ -147,6 +170,24 @@ def main():
         
     print(f"Initializing YoloDetector...")
     detector = YoloDetector(model_path="yolov8n.pt", confidence_threshold=0.5)
+
+    print("Initializing FaceDetector...")
+    global face_detector
+    face_detector = FaceDetector()
+
+    if face_config.get("enabled", True):
+        gallery_dir = face_config.get("gallery_dir", "faces")
+        confidence_threshold = float(face_config.get("confidence_threshold", 65.0))
+        min_samples_per_person = int(face_config.get("min_samples_per_person", 2))
+        print(f"Initializing FaceIdentifier from gallery: {gallery_dir}")
+        global face_identifier
+        face_identifier = FaceIdentifier(
+            gallery_dir=gallery_dir,
+            confidence_threshold=confidence_threshold,
+            min_samples_per_person=min_samples_per_person,
+        )
+    else:
+        print("Face identification disabled in config.json.")
     
     print(f"Initializing ApiPublisher to endpoint: {api_url}")
     publisher = ApiPublisher(api_url)

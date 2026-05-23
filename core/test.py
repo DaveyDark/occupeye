@@ -7,6 +7,8 @@ import cv2
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from detector.yolo import YoloDetector
+from detector.face import FaceDetector
+from identity.face_identifier import FaceIdentifier
 from sources.rtsp import RtspSource
 from sources.video import VideoSource
 
@@ -26,6 +28,10 @@ def main():
     # Initialize Detector
     print("Initializing YOLOv8 person detector...")
     detector = YoloDetector(model_path="yolov8n.pt", confidence_threshold=0.5)
+    print("Initializing face detector...")
+    face_detector = FaceDetector()
+    print("Initializing face identifier...")
+    face_identifier = FaceIdentifier()
 
     # Determine source type
     is_rtsp = source_path.startswith("rtsp://") or source_path.startswith("rtsps://")
@@ -68,7 +74,7 @@ def main():
     print("Press Ctrl+C to stop.")
     print("=" * 60 + "\n")
     
-    print(f"{'Time':<12}{'Source Type':<15}{'People Count':<15}{'Max Confidence':<15}")
+    print(f"{'Time':<12}{'Source Type':<15}{'People Count':<15}{'Faces Count':<15}{'Known Faces':<25}{'Max Confidence':<15}")
     print("-" * 60)
 
     try:
@@ -90,19 +96,23 @@ def main():
                 else:
                     # RTSP stream might be lagging or temporarily disconnected
                     current_time = time.strftime("%H:%M:%S")
-                    print(f"{current_time:<12}{'RTSP (stalled)':<15}{'--':<15}{'--':<15}")
+                    print(f"{current_time:<12}{'RTSP (stalled)':<15}{'--':<15}{'--':<15}{'--':<15}")
                     time.sleep(sample_interval)
                     continue
 
             # Run detection
             results = detector.detect(frame)
+            face_results = face_detector.detect(frame, rois=[det["box"] for det in results["detections"]] or None)
+            identity_results = face_identifier.identify(frame, face_results["detections"])
             count = results["count"]
+            face_count = face_results["count"]
+            known_faces = ", ".join(identity_results["recognized_names"]) if identity_results["recognized_names"] else "none"
             max_conf = results["max_confidence"]
 
             # Log to console
             source_type_str = "RTSP Live" if is_rtsp else "Video File"
             conf_str = f"{max_conf:.2f}" if count > 0 else "0.00"
-            print(f"{timestamp_str:<12}{source_type_str:<15}{count:<15}{conf_str:<15}")
+            print(f"{timestamp_str:<12}{source_type_str:<15}{count:<15}{face_count:<15}{known_faces:<25}{conf_str:<15}")
 
             # Calculate sleep to maintain constant sample interval
             elapsed = time.time() - loop_start
