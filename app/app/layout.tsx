@@ -1,16 +1,16 @@
-import { Space_Grotesk } from "next/font/google";
+import { Inter } from "next/font/google";
 import type { Metadata } from "next";
 import "./globals.css";
 
-const spaceGrotesk = Space_Grotesk({
+const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-space-grotesk",
+  variable: "--font-inter",
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "OccupEye",
-  description: "Live floor plan occupancy dashboard",
+  title: "OccupEye - Office Occupancy Map",
+  description: "Sophisticated real-time office floor plan and room occupancy status dashboard.",
 };
 
 export default function RootLayout({
@@ -20,7 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={spaceGrotesk.variable}>{children}</body>
+      <body className={`${inter.variable} antialiased`}>{children}</body>
     </html>
   );
 }

@@ -106,14 +106,20 @@ class FaceDetector:
             return []
 
         gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
+        if gray.shape[0] < self.min_size[1] or gray.shape[1] < self.min_size[0]:
+            return []
+
         gray = cv2.equalizeHist(gray)
 
-        faces = self.classifier.detectMultiScale(
-            gray,
-            scaleFactor=self.scale_factor,
-            minNeighbors=self.min_neighbors,
-            minSize=self.min_size,
-        )
+        try:
+            faces = self.classifier.detectMultiScale(
+                gray,
+                scaleFactor=self.scale_factor,
+                minNeighbors=self.min_neighbors,
+                minSize=self.min_size,
+            )
+        except cv2.error:
+            faces = []
 
         detections: list[dict] = []
         for (x, y, width, height) in faces:

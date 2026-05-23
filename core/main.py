@@ -3,6 +3,7 @@ import sys
 import json
 import time
 import threading
+import requests
 from datetime import datetime
 
 # Add project directories to sys.path
@@ -21,8 +22,40 @@ detector_lock = threading.Lock()
 face_detector: FaceDetector | None = None
 face_identifier: FaceIdentifier | None = None
 
+def check_room_booking(api_url: str, room_url: str) -> bool:
+    """
+    Queries the occupancy API to check if this room is currently reserved/booked.
+    """
+    try:
+        response = requests.get(api_url, timeout=3.0)
+        if response.status_code == 200:
+            data = response.json()
+            for room in data.get("rooms", []):
+                if room.get("roomUrl") == room_url:
+                    return room.get("isBooked", False)
+    except Exception as e:
+        # Fail silently to keep detector running without crashing
+        pass
+    return False
+
+def release_room_booking(base_api_url: str, room_url: str) -> bool:
+    """
+    Sends a DELETE request to /api/bookings to release/cancel the room reservation.
+    """
+    bookings_url = base_api_url.replace("/occupancy", "/bookings")
+    try:
+        response = requests.delete(f"{bookings_url}?roomUrl={requests.utils.quote(room_url)}", timeout=3.0)
+        if response.status_code == 200:
+            print(f"[Booking Release] Successfully released booking for {room_url}")
+            return True
+        else:
+            print(f"[Booking Release] Failed to release booking for {room_url}: status {response.status_code}")
+    except Exception as e:
+        print(f"[Booking Release] Error releasing booking for {room_url}: {e}")
+    return False
+
 def room_worker(source_url: str, detector: YoloDetector, publisher: ApiPublisher, 
-                sample_interval: float, smoothing_config: dict, stop_event: threading.Event):
+                sample_interval: float, smoothing_config: dict, booking_reset_frames: int, stop_event: threading.Event):
     """
     Worker function executed in a separate thread for each camera/room feed.
     """
@@ -74,6 +107,18 @@ def room_worker(source_url: str, detector: YoloDetector, publisher: ApiPublisher
 
     print(f"[{room_name}] Stream source initialized successfully. Starting analysis loop...")
     
+    # Send immediate connection state (occupied=None / null)
+    publisher.publish(source_url, None, [], 0)
+    
+    tracked_people: dict[str, int] = {}
+    prev_people_list: list[str] = None
+    prev_person_count: int = None
+    
+    # Booking tracking variables
+    last_booking_check = 0.0
+    is_booked = False
+    empty_frames_count = 0
+    
     try:
         while not stop_event.is_set():
             loop_start = time.time()
@@ -100,40 +145,89 @@ def room_worker(source_url: str, detector: YoloDetector, publisher: ApiPublisher
             with detector_lock:
                 results = detector.detect(frame)
 
-            face_results = {"count": 0, "detections": []}
-            if face_detector is not None:
-                face_results = face_detector.detect(
-                    frame,
-                    rois=[det["box"] for det in results["detections"]] or None,
-                )
-
-            identity_results = {"recognized_count": 0, "recognized_names": [], "detections": []}
-            if face_identifier is not None and face_results["detections"]:
-                identity_results = face_identifier.identify(frame, face_results["detections"])
-                
             count = results["count"]
+            max_conf = results["max_confidence"]
+
+            face_results = {"count": 0, "detections": []}
+            identity_results = {"recognized_count": 0, "recognized_names": [], "detections": []}
+            
+            # Rely strictly on YOLO people count > 0 to run face detection and avoid false positives
+            if count > 0:
+                if face_detector is not None:
+                    face_results = face_detector.detect(
+                        frame,
+                        rois=[det["box"] for det in results["detections"]],
+                    )
+
+                if face_identifier is not None and face_results["detections"]:
+                    identity_results = face_identifier.identify(frame, face_results["detections"])
+                
             face_count = face_results["count"]
             recognized_count = identity_results["recognized_count"]
             recognized_names = identity_results["recognized_names"]
-            max_conf = results["max_confidence"]
             
             # Update state machine (applies temporal smoothing)
             state_changed, is_occupied = state_machine.update(count)
             
+            # Periodically check booking status from API
+            now = time.time()
+            if now - last_booking_check > 5.0:
+                is_booked = check_room_booking(publisher.api_url, source_url)
+                last_booking_check = now
+
+            if is_booked:
+                if is_occupied:
+                    if empty_frames_count > 0:
+                        print(f"[{room_name}] Occupancy detected in reserved room. Resetting empty frames counter.")
+                    empty_frames_count = 0
+                else:
+                    empty_frames_count += 1
+                    print(f"[{room_name}] Room is RESERVED but unoccupied. Frame count: {empty_frames_count}/{booking_reset_frames}")
+                    if empty_frames_count >= booking_reset_frames:
+                        print(f"[{room_name}] Room unoccupied for {booking_reset_frames} frames. Auto-releasing booking...")
+                        if release_room_booking(publisher.api_url, source_url):
+                            is_booked = False
+                            empty_frames_count = 0
+            else:
+                empty_frames_count = 0
+            
+            # Update tracked people list based on current detections and room occupancy state
+            if is_occupied:
+                # 1. Reset cooldown for currently recognized names (5 frames threshold)
+                for name in recognized_names:
+                    tracked_people[name] = 5
+                
+                # 2. Decrement cooldown for other tracked names
+                for name in list(tracked_people.keys()):
+                    if name not in recognized_names:
+                        tracked_people[name] -= 1
+                        if tracked_people[name] <= 0:
+                            del tracked_people[name]
+            else:
+                tracked_people.clear()
+
+            current_people_list = sorted(list(tracked_people.keys()))
+            people_changed = current_people_list != prev_people_list
+            
+            effective_count = max(1, count) if is_occupied else 0
+            count_changed = effective_count != prev_person_count
+            
             # Print current frame status to console
             state_str = "OCCUPIED" if is_occupied else "AVAILABLE"
             time_str = datetime.now().strftime("%H:%M:%S")
-            identity_str = ", ".join(recognized_names) if recognized_names else "none"
+            tracked_str = ", ".join(current_people_list) if current_people_list else "none"
             print(
-                f"[{time_str}] [{room_name}] People detected: {count} | Faces detected: {face_count} | "
-                f"Recognized: {identity_str} | Smoothed State: {state_str} (Conf: {max_conf:.2f})"
+                f"[{time_str}] [{room_name}] People detected: {count} (Effective: {effective_count}) | Faces detected: {face_count} | "
+                f"Tracked People: {tracked_str} | Smoothed State: {state_str} (Conf: {max_conf:.2f})"
             )
             
-            # Publish to API if room occupancy state transitioned
-            if state_changed:
-                print(f"[{room_name}] Occupancy state changed! Publishing update...")
+            # Publish to API if room occupancy state transitioned, tracked people list changed, or person count changed
+            if state_changed or people_changed or count_changed:
+                print(f"[{room_name}] Status updated (state_changed={state_changed}, people_changed={people_changed}, count_changed={count_changed})! Publishing update...")
                 # Run publish asynchronously or simple blocking since timeout is short
-                publisher.publish(source_url, is_occupied)
+                publisher.publish(source_url, is_occupied, current_people_list, effective_count)
+                prev_people_list = current_people_list
+                prev_person_count = effective_count
                 
             # Sleep remaining time of the interval
             elapsed = time.time() - loop_start
@@ -163,6 +257,7 @@ def main():
     smoothing = config.get("smoothing", {"positive_threshold": 3, "negative_threshold": 10})
     face_config = config.get("face_recognition", {})
     rooms = config.get("rooms", [])
+    booking_reset_frames = config.get("booking_reset_frames", 15)
     
     if not rooms:
         print("Warning: No rooms configured in config.json. Exiting.")
@@ -199,7 +294,7 @@ def main():
     for source_url in rooms:
         t = threading.Thread(
             target=room_worker,
-            args=(source_url, detector, publisher, sample_interval, smoothing, stop_event),
+            args=(source_url, detector, publisher, sample_interval, smoothing, booking_reset_frames, stop_event),
             daemon=True
         )
         threads.append(t)

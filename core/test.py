@@ -102,12 +102,19 @@ def main():
 
             # Run detection
             results = detector.detect(frame)
-            face_results = face_detector.detect(frame, rois=[det["box"] for det in results["detections"]] or None)
-            identity_results = face_identifier.identify(frame, face_results["detections"])
             count = results["count"]
+            max_conf = results["max_confidence"]
+
+            face_results = {"count": 0, "detections": []}
+            identity_results = {"recognized_count": 0, "recognized_names": [], "detections": []}
+
+            if count > 0:
+                face_results = face_detector.detect(frame, rois=[det["box"] for det in results["detections"]])
+                if face_results["detections"]:
+                    identity_results = face_identifier.identify(frame, face_results["detections"])
+
             face_count = face_results["count"]
             known_faces = ", ".join(identity_results["recognized_names"]) if identity_results["recognized_names"] else "none"
-            max_conf = results["max_confidence"]
 
             # Log to console
             source_type_str = "RTSP Live" if is_rtsp else "Video File"

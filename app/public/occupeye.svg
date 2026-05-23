@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="256"
+   height="256"
+   version="1.1"
+   id="svg2"
+   sodipodi:docname="occupeye.svg"
+   inkscape:version="1.4.4 (dcaf3e7d9e, 2026-05-05)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs2">
+    <linearGradient
+       id="Gradient"
+       x1="0"
+       x2="0"
+       y1="0"
+       y2="1">
+      <stop
+         offset="0%"
+         style="stop-color:#16424A;stop-opacity:1"
+         id="stop1" />
+      <stop
+         offset="100%"
+         style="stop-color:#16424A;stop-opacity:1"
+         id="stop2" />
+    </linearGradient>
+    <filter
+       id="alpha-to-white"
+       x="0"
+       y="0"
+       width="1"
+       height="1">
+      <feColorMatrix
+         in="SourceGraphic"
+         type="matrix"
+         values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0"
+         id="feColorMatrix2" />
+    </filter>
+    <g
+       id="child-svg">
+      <svg
+         version="1.1"
+         id="svg1"
+         width="128"
+         height="128"
+         viewBox="0 0 128 128"
+         sodipodi:docname="occupeye.svg"
+         inkscape:version="1.4.4 (dcaf3e7d9e, 2026-05-05)">
+        <defs
+           id="defs1" />
+        <sodipodi:namedview
+           id="namedview1"
+           pagecolor="#ffffff"
+           bordercolor="#000000"
+           borderopacity="0.25"
+           inkscape:showpageshadow="2"
+           inkscape:pageopacity="0.0"
+           inkscape:pagecheckerboard="0"
+           inkscape:deskcolor="#d1d1d1"
+           inkscape:zoom="4.2263158"
+           inkscape:cx="58.67995"
+           inkscape:cy="68.972603"
+           inkscape:window-width="1920"
+           inkscape:window-height="1011"
+           inkscape:window-x="0"
+           inkscape:window-y="0"
+           inkscape:window-maximized="1"
+           inkscape:current-layer="svg2" />
+        <g
+           inkscape:groupmode="layer"
+           inkscape:label="Image"
+           id="g1">
+          <path
+             style="fill:#000000;stroke-width:1.23172"
+             d="M 52.531582,124.42948 C -14.917542,109.81529 -11.940255,12.119608 56.226729,3.1782219 l 6.158578,-0.8078133 -8.18326,2.8523528 C 8.2210625,21.249871 4.3830379,84.039855 48.064765,105.62853 l 9.265913,4.57947 h 14.228619 c 22.652014,0 38.979243,-9.81718 48.724583,-29.296986 4.73011,-9.454957 5.68197,-7.737009 1.86313,3.362645 C 112.46518,112.41443 80.957841,130.5886 52.531582,124.42948 Z M 83.001023,104.14145 C 110.29986,93.467776 120.44861,60.77001 104.10507,36.147409 83.875492,5.6702634 37.19368,11.775423 23.954844,46.62965 l -1.692548,4.455999 0.708031,-4.926863 C 26.335861,22.73962 47.505739,5.5121714 72.918766,5.5121714 H 85.915669 L 95.301034,10.15067 C 137.9407,31.224339 129.31014,99.643955 83.294246,105.33569 l -4.896636,0.60567 z M 47.262549,98.449018 C 15.237561,82.445941 20.941801,33.301857 55.610871,26.525161 59.475662,25.769718 59.277343,25.991789 53.694802,28.67068 37.499072,36.442521 30.03724,57.094022 37.57566,73.282334 c 12.203037,26.205353 48.54153,27.344546 61.778236,1.936725 1.621114,-3.11172 2.973274,-4.776236 3.004824,-3.698903 0.61522,21.012871 -33.533918,37.703654 -55.096171,26.928862 z M 80.965921,86.845013 c 13.136013,-7.874604 17.372031,-24.991629 9.54821,-38.582657 -11.268288,-19.5745 -39.696124,-18.673458 -50.214224,1.591577 -2.372211,4.570501 -2.546929,2.005946 -0.239569,-3.516358 8.785729,-21.027199 38.552649,-25.902894 53.58883,-8.777626 13.511522,15.388777 9.437272,39.376343 -8.330548,49.046789 -7.559113,4.114189 -11.145807,4.310524 -4.352699,0.238275 z M 54.675826,80.037617 C 41.972109,72.292072 42.782208,51.389469 56.029728,45.103106 c 8.659651,-4.109271 20.485106,-1.6019 25.471423,5.400751 3.253257,4.568769 3.096681,4.993857 -1.277708,3.468936 -4.844029,-1.688638 -9.323114,-0.483855 -13.016253,3.501107 -6.540484,7.057303 -1.520787,18.376278 8.471099,19.101574 l 5.182752,0.376203 -4.311005,2.766753 c -5.697497,3.656594 -16.150267,3.809117 -21.87421,0.319187 z"
+             id="path1" />
+        </g>
+      </svg>
+    </g>
+  </defs>
+  <rect
+     width="256"
+     height="256"
+     fill="url(#Gradient)"
+     ry="0"
+     x="0"
+     y="0"
+     id="rect2" />
+  <use
+     xlink:href="#child-svg"
+     filter="url(#alpha-to-white)"
+     transform="matrix(1.8715145,0,0,1.8715145,8.2230707,8.2230712)"
+     id="use2" />
+</svg>

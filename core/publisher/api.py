@@ -15,13 +15,15 @@ class ApiPublisher:
         self.api_url = api_url
         print(f"[ApiPublisher] Initialized with endpoint: {self.api_url}")
 
-    def publish(self, room_url: str, is_occupied: bool) -> bool:
+    def publish(self, room_url: str, is_occupied: bool | None, people: list[str] | None = None, person_count: int = 0) -> bool:
         """
         Publishes the occupancy state of a room to the configured API.
         
         Args:
             room_url: The RTSP stream URL or local video path identifying the camera feed.
-            is_occupied: True if room is occupied, False if available.
+            is_occupied: True if room is occupied, False if available, None if unknown/unconnected.
+            people: Optional list of names of recognized individuals in the room.
+            person_count: The total number of people detected in the room.
             
         Returns:
             True if the publish request succeeded, False otherwise.
@@ -32,6 +34,8 @@ class ApiPublisher:
         payload = {
             "room-url": room_url,
             "occupied": is_occupied,
+            "people": people or [],
+            "person-count": person_count,
             "timestamp": timestamp
         }
         

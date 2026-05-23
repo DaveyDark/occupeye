@@ -28,7 +28,7 @@ class FaceIdentifier:
         self,
         gallery_dir: str = "faces",
         confidence_threshold: float = 65.0,
-        min_samples_per_person: int = 2,
+        min_samples_per_person: int = 1,
         image_size: tuple[int, int] = (200, 200),
         cascade_path: str | None = None,
     ):
